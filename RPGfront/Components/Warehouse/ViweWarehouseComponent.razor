@@ -1,0 +1,164 @@
+@page "/warehouse/viwe/{id}"
+@using RPGobject
+@using RPGback.Controllers
+@inject NavigationManager NavManager
+
+@if (oWarehouse == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <ul class="nav nav-tabs list-unstyled">
+        <li class="nav-item">
+            <a class="nav-link" href="/warehouse/list">Warehouse List</a>
+        </li>
+        <li>
+            <a class="nav-link" href="/warehouse/create">+ New Warehouse</a>
+        </li>
+        <li>
+            <a class="nav-link active" href="">Warehouse products</a>
+        </li>
+    </ul>
+    
+    <h3>View Warehouse</h3>
+
+    <div class="form-group inline-group">
+        <label>Name: </label>
+        <p>@oWarehouse.WarehouseName</p>
+    </div>
+    <div class="form-group inline-group">
+        <label>Last Name: </label>
+        <p>@oWarehouse.WarehouseAddress</p>
+    </div>
+
+    <h4>Orders:</h4>
+    @if (oWarehouse.Orders != null && oWarehouse.Orders.Count > 0)
+    {
+        <table class="table table-hover table-bordered">
+            <thead>
+                <tr>
+                    <th>Products</th>
+                    <th>Quantity</th>
+                    <th>Total Amount</th>
+                    <th>Order Date</th>
+                    <th>Order ID</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var order in oWarehouse.Orders)
+                {
+                    <tr>
+                        <td>
+                            @if (order.OrderProducts != null && order.OrderProducts.Count > 0)
+                            {
+                                @foreach (var orderProduct in order.OrderProducts)
+                                {
+                                    <p>@orderProduct.Product.ProductName</p>
+                                }
+                            }
+                            else
+                            {
+                                <p>No products found for this transaction.</p>
+                            }
+                        </td>
+                        <td>
+                            @if (order.OrderProducts != null && order.OrderProducts.Count > 0)
+                            {
+                                @foreach (var orderProduct in order.OrderProducts)
+                                {
+                                    <p>@orderProduct.Quantity</p>
+                                }
+                            }
+                            else
+                            {
+                                <p>N/A</p>
+                            }
+                        </td>
+                        <td>@order.TotalAmount</td>
+                        <td>@order.FechData</td>
+                        <td>@order.OrderId</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p>No order found for this warehouse.</p>
+    }
+    
+    <h4>Existing Products:</h4>
+    @if (oWarehouse.Orders != null && oWarehouse.Orders.Count > 0)
+    {
+        <table class="table table-hover table-bordered">
+            <thead>
+                <tr>
+                    <th>Products</th>
+                    <th>Quantity</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (oWarehouse.Orders.SelectMany(o => o.OrderProducts).Any())
+                {
+                    var productsTotal = oWarehouse.Orders
+                        .SelectMany(o => o.OrderProducts)
+                        .GroupBy(op => op.Product.ProductName)
+                        .Select(group => new
+                        {
+                            ProductName = group.Key,
+                            TotalQuantity = group.Sum(op => op.Quantity)
+                        });
+
+                    foreach (var productTotal in productsTotal)
+                    {
+                        <tr>
+                            <td>@productTotal.ProductName</td>
+                            <td>@productTotal.TotalQuantity</td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="5">No products found for this warehouse.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p>No order found for this warehouse.</p>
+    }
+    
+}
+
+@code {
+    [Parameter]
+    public string id { get; set; }
+
+    private Warehouse oWarehouse;
+
+    protected override async Task OnInitializedAsync()
+    {
+        oWarehouse = await WarehouseControllers.GetWarehouseByIdAsync(id);
+        if (oWarehouse != null)
+        {
+            oWarehouse.Orders = await 
+                OrderControllers.GetOrdersByWarehouseIdAsync(oWarehouse.WarehouseId);
+            foreach (var order in oWarehouse.Orders)
+            {
+                order.OrderProducts = await
+                    OrderProductControllers.GetOrderProductsByOrderIdAsync(order.OrderId);
+
+
+                foreach (var orderProduct in order.OrderProducts)
+                {
+                    orderProduct.Product = await 
+                        ProductControllers.GetProductByIdAsync(orderProduct.ProductId);
+                }
+            }
+        }
+    }
+}

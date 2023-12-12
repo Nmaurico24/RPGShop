@@ -1,0 +1,66 @@
+@page "/transaction/list"
+@using RPGobject
+@using RPGback.Controllers
+
+@inject NavigationManager NavManager
+
+<ul class="nav nav-tabs list-unstyled">
+    <li class="nav-item">
+        <a class="nav-link active" href="/transaction/list">Transaction List</a>
+    </li>
+    <li>
+        <a class="nav-link" href="/transaction/create">+ New Transaction</a>
+    </li>
+</ul>
+
+<h2>Transaction List</h2>
+
+<table class="table table-hover table-bordered">
+    <thead class="table-dark">
+        <tr>
+            <th>Client</th>
+            <th>Fech</th>
+            <th>Total Amount</th>
+            <th>Id</th>
+            <th></th>
+            
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var transaction in TransactionControllers.GetTransactions())
+        {
+            <tr>
+                <td>@GetClientName(transaction.ClientId)</td>
+                <td>@transaction.FechData</td>
+                <td>@transaction.TotalAmount</td>
+                <td>@transaction.TransactionId</td>
+                <td>
+                    <button class="btn btn-primary" @onclick="@(() => ViweTransaction(transaction.TransactionId))">Viwe</button>
+                    
+                </td>
+            </tr>
+        }
+    </tbody>
+    
+</table>
+
+@code {
+    List<Client> Clients = new List<Client>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Clients = await RPGback.Controllers.ClientControllers.GetClientsAsync();
+    }
+    
+    
+    private string GetClientName(string clientId)
+    {
+        var client = Clients.FirstOrDefault(c => c.ClientId == clientId);
+        Console.WriteLine();
+        return client?.ClientName ?? "Unknown";
+    }
+    private void ViweTransaction(string transactionId)
+    {
+        NavManager.NavigateTo($"/transaction/viwe/{transactionId}");
+    }
+}

@@ -1,0 +1,88 @@
+@page "/product/update/{id}"
+@using RPGobject
+@using RPGback.Controllers
+@inject NavigationManager NavManager
+
+<h3>Update Product</h3>
+
+@if (oProduct == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <EditForm Model="@oProduct" OnSubmit="UpdateProduct">
+        <div class="form-group">
+            <label>Reference: </label>
+            <InputText @bind-Value="@oProduct.ProductId" class="form-control" />
+        </div>
+        <div class="form-group">
+            <label>Name: </label>
+            <InputText @bind-Value="@oProduct.ProductName" class="form-control" />
+        </div>
+        <div class="form-group">
+            <label>Description: </label>
+            <InputTextArea @bind-Value="@oProduct.ProductDescription" class="form-control" />
+        </div>
+        <div class="form-group">
+            <label>PurchasePrice: </label>
+            <InputNumber @bind-Value="@oProduct.PurchasePrice" class="form-control" />
+        </div>
+        <div class="form-group">
+            <label>SalePrice: </label>
+            <InputNumber @bind-Value="@oProduct.SalePrice" class="form-control" />
+        </div>
+        <div class="form-group">
+            <label>Category 1: </label>
+            <InputSelect @bind-Value="@oProduct.Category1" class="form-control">
+                @foreach (var categoryValue in Enum.GetValues(typeof(Category1)))
+                {
+                    <option value="@categoryValue">@categoryValue</option>
+                }
+            </InputSelect>
+        </div>
+        <div class="form-group">
+            <label>Category 2: </label>
+            <InputSelect @bind-Value="@oProduct.Category2" class="form-control">
+                @foreach (var categoryValue in Enum.GetValues(typeof(Category2)))
+                {
+                    <option value="@categoryValue">@categoryValue</option>
+                }
+            </InputSelect>
+        </div>
+        <div class="form-group">
+            <label>Category 3: </label>
+            <InputSelect @bind-Value="@oProduct.Category3" class="form-control">
+                @foreach (var categoryValue in Enum.GetValues(typeof(Category3)))
+                {
+                    <option value="@categoryValue">@categoryValue</option>
+                }
+            </InputSelect>
+        </div>
+        <button type="submit" class="btn btn-primary">Update Product</button>
+        <button type="button" class="btn btn-secondary" @onclick="CancelUpdate">Cancel</button>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public string id { get; set; }
+
+    private Product oProduct;
+
+    protected override async Task OnInitializedAsync()
+    {
+        oProduct = await ProductControllers.GetProductByIdAsync(id);
+    }
+
+    private async void UpdateProduct()
+    {
+        await ProductControllers.UpdateProductAsync(oProduct);
+        NavManager.NavigateTo("/product/list");
+    }
+
+    private void CancelUpdate()
+    {
+        NavManager.NavigateTo("/product/list");
+    }
+}

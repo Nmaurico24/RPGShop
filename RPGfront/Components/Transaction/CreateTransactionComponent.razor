@@ -1,0 +1,339 @@
+@using RPGobject
+@using RPGback.Controllers
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Forms
+
+@page "/transaction/create"
+
+@inject NavigationManager NavManager
+
+@if (Products == null)
+{
+    <div class="alert alert-danger">
+        An error occurred while loading the product list. Please try again later.
+    </div>
+}
+
+<ul class="nav nav-tabs list-unstyled">
+    <li class="nav-item">
+        <a class="nav-link" href="/transaction/list">Transaction List</a>
+    </li>
+    <li>
+        <a class="nav-link active" href="/transaction/create">+ New Transaction</a>
+    </li>
+</ul>
+<h3>Create Transaction</h3>
+
+<form>
+    <div class="form-group">
+        <label>Client: </label>
+        <select @bind="oTransaction.ClientId" class="form-control">
+            <option value="">-- Select a client --</option>
+            @foreach (var client in Clients)
+            {
+                <option value="@client.ClientId">@client.ClientName @client.ClientLastname</option>
+            }
+        </select>
+        <button class="btn btn-primary btn-sm" type="button" @onclick="addClient">Add</button>
+    </div>
+    <div class="custom-select">
+        @if (Products != null && Products.Count > 0)
+        {
+            <h4>Available Products</h4>
+            <table class="table table-bordered table-sm">
+                <thead>
+                    <tr>
+                        <th>Product Name</th>
+                        <th>Sale Price</th>
+                        <th>Quantity</th>
+                        <th>Existing units</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var product in Products)
+                    {
+                        <tr>
+                            <td>
+                                @product.ProductName
+                            </td>
+                            <td>
+                                @product.SalePrice
+                            </td>
+                            <td>
+                                <input type="number" value="0" @oninput="e => SetQuantity(product.ProductId, ParseQuantity(e.Value.ToString()))" />
+                            </td>
+                            <td>
+                                @if (oWarehouse.Orders.SelectMany(o => o.OrderProducts).Any())
+                                {
+                                    var existingQuantity = oWarehouse.Orders
+                                        .SelectMany(o => o.OrderProducts)
+                                        .Where(op => op.Product.ProductName == product.ProductName)
+                                        .Sum(op => op.Quantity);
+                            
+                                    var valueInput = GetTotalQuantity(product.ProductId);
+                                    var totalQuantity = existingQuantity - valueInput;
+                                    
+                                    <span>@totalQuantity</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+
+                <tfoot>
+                    <div class="total-amount">Total Amount: @oTransaction.TotalAmount</div>
+                </tfoot>
+            </table>
+        }
+        else
+        {
+            <p>No products found.</p>
+        }
+        <button type="button" class="btn btn-primary btn-sm" @onclick="CrearTransaccion" disabled="@(!IsValid())">Create Transaction</button>
+        <label>Generate Ticket:</label>
+        <input type="checkbox" name="Generate ticket" @bind="guardarEnArchivo" />
+    </div>
+</form>
+
+@code {
+    private DateTime currentDate;
+    List<Client> Clients = new List<Client>();
+    private string ClientId { get; set; }
+    private List<Product> Products { get; set; }
+    private List<string> SelectedProductIds { get; set; } = new List<string>();
+    private int Quantity { get; set; }
+    Dictionary<string, int> productQuantities = new Dictionary<string, int>();
+    private Transaction oTransaction;
+    private EditContext editContext;
+    private Warehouse oWarehouse;
+    private bool guardarEnArchivo = false;
+
+    private bool IsValid()
+    {
+        return editContext.Validate();
+    }
+    int GetTotalQuantity(string productId)
+    {
+        if (productQuantities.TryGetValue(productId, out int totalQuantity))
+        {
+            return totalQuantity;
+        }
+        return 0;
+    }
+
+    void SetQuantity(string productId, int value)
+    {
+        productQuantities[productId] = value;
+
+        if (value > 0)
+        {
+            if (!SelectedProductIds.Contains(productId))
+            {
+                SelectedProductIds.Add(productId);
+            }
+        }
+        else
+        {
+            SelectedProductIds.Remove(productId);
+        }
+        UpdateTotalAmount();
+    }
+    void SubtractQuantity(string productId)
+    {
+        var orderProduct = oWarehouse.Orders
+            .SelectMany(o => o.OrderProducts)
+            .FirstOrDefault(op => op.Product.ProductId == productId);
+        if (orderProduct != null) 
+        {
+            int quantityToSubtract = GetTotalQuantity(productId); 
+            orderProduct.SubtractQuantity(quantityToSubtract);
+            OrderProductControllers.UpdateOrderProduct(orderProduct);
+        }
+    }
+    
+    void UpdateTotalAmount()
+    {
+        decimal totalAmount = 0;
+    
+        foreach (var productId in SelectedProductIds)
+        {
+            var producto = Products.FirstOrDefault(p => p.ProductId == productId);
+    
+            if (producto != null && productQuantities.TryGetValue(productId, out int quantity))
+            {
+                totalAmount += producto.SalePrice * quantity;
+            }
+        }
+        oTransaction.TotalAmount = totalAmount;
+    
+        StateHasChanged();
+    }
+    
+    int ParseQuantity(string input)
+    {
+        if (int.TryParse(input, out int quantity))
+        {
+            return quantity;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        oTransaction = new Transaction
+        {
+            TransactionId = Guid.NewGuid().ToString(),
+            TransactionProducts = new List<TransactionProduct>()
+        };
+        editContext = new EditContext(oTransaction);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentDate = GetCurrentDate();
+        Products = await RPGback.Controllers.ProductControllers.GetProductsAsync();
+        Clients = await RPGback.Controllers.ClientControllers.GetClientsAsync();
+
+        oWarehouse = await WarehouseControllers.GetWarehouseByIdAsync(""); //id Central Warehouse
+        if (oWarehouse != null)
+        {
+            oWarehouse.Orders = await OrderControllers.GetOrdersByWarehouseIdAsync(oWarehouse.WarehouseId);
+            foreach (var order in oWarehouse.Orders)
+            {
+                order.OrderProducts = await
+                OrderProductControllers.GetOrderProductsByOrderIdAsync(order.OrderId);
+
+
+                foreach (var orderProduct in order.OrderProducts)
+                {
+                    orderProduct.Product = await ProductControllers.GetProductByIdAsync(orderProduct.ProductId);
+                }
+            }
+        }
+    }
+    private async Task CrearTransaccion()
+    {
+        oTransaction.FechData = currentDate;
+        oTransaction.TransactionProducts.Clear();
+        decimal totalAmount = 0;
+        foreach (var productId in SelectedProductIds)
+        {
+            var producto = Products.FirstOrDefault(p => p.ProductId == productId);
+
+            if (producto != null && productQuantities.TryGetValue(productId, out int quantity))
+            {
+
+                SubtractQuantity(productId);
+                
+                TransactionProduct oTransactionProduct = new TransactionProduct
+                    {
+                        TransactionId = oTransaction.TransactionId,
+                        ProductId = producto.ProductId,
+                        Quantity = quantity
+                    };
+                oTransaction.TransactionProducts ??= new List<TransactionProduct>();
+                oTransaction.TransactionProducts.Add(oTransactionProduct);
+                totalAmount += producto.SalePrice * quantity;
+            }
+        }
+        oTransaction.TotalAmount = totalAmount;
+
+        try
+        {
+            await TransactionControllers.CreateTransactionAsync(oTransaction);
+            Console.WriteLine("Nueva transacción creada con éxito");
+        }
+        catch (Exception ex)
+
+        {
+            Console.WriteLine($"Error al crear la transacción: {ex.Message}");
+
+            if (ex.InnerException != null)
+            {
+                Console.WriteLine($"Error interno: {ex.InnerException.Message}");
+            }
+        }
+
+        if (guardarEnArchivo)
+        {
+            await GuardarEnArchivo();
+        }
+
+    }
+    
+    private void addClient()
+    {
+        var client = Clients.FirstOrDefault(c => c.ClientId == oTransaction.ClientId);
+        if (client != null)
+        {
+            oTransaction.ClientId = client.ClientId;
+        }
+    }
+    private void OnProductSelectionChange(string productId)
+    {
+        if (SelectedProductIds.Contains(productId))
+        {
+            SelectedProductIds.Remove(productId);
+        }
+        else
+        {
+            SelectedProductIds.Add(productId);
+        }
+    }
+    
+    private DateTime GetCurrentDate()
+    {
+        return DateTime.Now;
+    }
+
+    private async Task GuardarEnArchivo()
+    {
+        try
+        {  
+            string transactionIdPrefix = oTransaction.TransactionId.Substring(0, Math.Min(oTransaction.TransactionId.Length, 10));
+
+            string fileName = $"Transaction_{transactionIdPrefix}_{oTransaction.FechData:yyyyMMdd}.txt";
+
+            string contenidoArchivo = "----------------------------------------------------------------\n";
+            contenidoArchivo += "          RPGShop - TICKET DE COMPRA\n";
+            contenidoArchivo += "----------------------------------------------------------------\n\n";
+            contenidoArchivo += $"Fech: {oTransaction.FechData,-28}\n\n";
+            contenidoArchivo += $"Client: {ObtenerNombreCliente()}\n";
+            contenidoArchivo += $"Transaction ID : {oTransaction.TransactionId}\n\n";
+            contenidoArchivo += "Products:\n";
+            contenidoArchivo += "Quantity - Product             - Unit Price  - Sub-Total  \n";
+
+            foreach (var producto in oTransaction.TransactionProducts)
+            {
+                var product = Products.FirstOrDefault(p => p.ProductId == producto.ProductId);
+                if (product != null)
+                {
+                    contenidoArchivo += $"| {producto.Quantity,-10} | {product.ProductName,-25} | {product.SalePrice,-15:C2} | {producto.Quantity * product.SalePrice,-10:C2} |\n";
+                }
+            }
+
+            contenidoArchivo += "\n----------------------------------------------------------------\n\n";
+            contenidoArchivo += $"{"TOTAL:",53} {oTransaction.TotalAmount:C2}\n\n";
+            contenidoArchivo += "----------------------------------------------------------------\n\n";
+
+            await System.IO.File.WriteAllTextAsync(fileName, contenidoArchivo);
+
+            Console.WriteLine($"Transacción guardada en {fileName}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al guardar la transacción en el archivo: {ex.Message}");
+        }
+    }
+
+    
+    private string ObtenerNombreCliente()
+    {
+        var cliente = Clients.FirstOrDefault(c => c.ClientId == oTransaction.ClientId);
+        return cliente != null ? $"{cliente.ClientName} {cliente.ClientLastname}" : "";
+    }
+
+}

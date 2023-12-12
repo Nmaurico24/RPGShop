@@ -1,0 +1,58 @@
+@page "/product/list"
+@using RPGobject
+@using RPGback.Controllers
+
+@inject NavigationManager NavManager
+
+
+<ul class="nav nav-tabs list-unstyled">
+    <li class="nav-item">
+        <a class="nav-link active" href="/product/list">Product List</a>
+    </li>
+    <li>
+        <a class="nav-link" href="/product/create">+ New Product</a>
+    </li>
+</ul>
+
+<h2>Product List</h2>
+
+<table class="table table-hover table-bordered">
+    <thead class="table-dark">
+        <tr>
+            <th>Name</th>
+            <th>Purchase Price</th>
+            <th>Sale Price</th>
+            <th>Category 1</th>
+            <th>Category 2</th>
+            <th>Category 3</th>
+            <th>Description</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var product in ProductControllers.GetProducts())
+        {
+            <tr>
+                <td>@product.ProductName</td>
+                <td>@product.PurchasePrice</td>
+                <td>@product.SalePrice</td>
+                <td>@product.Category1</td>
+                <td>@product.Category2</td>
+                <td>@product.Category3</td>
+                <td>@product.ProductDescription</td>
+                <td>
+                    <button class="btn btn-primary" @onclick="@(() => EditProduct(product.ProductId))">Editar</button>
+                    
+                </td>
+            </tr>
+        }
+    </tbody>
+    
+</table>
+
+@code {
+    private void EditProduct(string productId)
+    {
+        NavManager.NavigateTo($"/product/update/{productId}");
+    }
+}

@@ -1,0 +1,55 @@
+@page "/client/list"
+@using RPGobject
+@using RPGback.Controllers
+
+@inject NavigationManager NavManager
+
+<ul class="nav nav-tabs list-unstyled">
+    <li class="nav-item">
+        <a class="nav-link active" href="/client/list">Client List</a>
+    </li>
+    <li>
+        <a class="nav-link" href="/client/create">New Client</a>
+    </li>
+</ul>
+
+<h2>Client List</h2>
+
+<table class="table table-hover table-bordered">
+    <thead class="table-dark">
+        <tr>
+            <th>Name</th>
+            <th></th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var client in ClientControllers.GetClients())
+        {
+            <tr>
+                <td>@client.ClientName</td>
+
+                <td>
+                    <button class="btn btn-primary" @onclick="@(() => EditClient(client.ClientId))">Editar</button>
+
+                </td>
+                <td>
+                    <button class="btn btn-primary" @onclick="@(() => ViweClient(client.ClientId))">Viwe</button>
+
+                </td>
+            </tr>
+        }
+    </tbody>
+    
+</table>
+
+@code {
+    private void EditClient(string clientId)
+    {
+        NavManager.NavigateTo($"/client/update/{clientId}");
+    }
+    private void ViweClient(string clientId)
+    {
+        NavManager.NavigateTo($"/client/viwe/{clientId}");
+    }
+}

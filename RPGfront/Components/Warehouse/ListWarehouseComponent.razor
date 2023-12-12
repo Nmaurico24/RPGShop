@@ -1,0 +1,56 @@
+@page "/warehouse/list"
+@using RPGobject
+@using RPGback.Controllers
+
+@inject NavigationManager NavManager
+
+<ul class="nav nav-tabs list-unstyled">
+    <li class="nav-item">
+        <a class="nav-link active" href="/warehouse/list">Warehouse List</a>
+    </li>
+    <li>
+        <a class="nav-link" href="/warehouse/create">+ New Warehouse</a>
+    </li>
+</ul>
+
+<h2>Warehouse List</h2>
+
+<table class="table table-hover table-bordered">
+    <thead class="table-dark">
+        <tr>
+            <th>Name</th>
+            <th>Address</th>
+            <th></th>
+            <th></th>
+            
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var warehouse in WarehouseControllers.GetWarehouses())
+        {
+            <tr>
+                <td>@warehouse.WarehouseName</td>
+                <td>@warehouse.WarehouseAddress</td>
+                <td>
+                    <button class="btn btn-primary" @onclick="@(() => EditWarehouse(warehouse.WarehouseId))">Editar</button>
+                    
+                </td>
+                <td>
+                    <button class="btn btn-primary" @onclick="@(() => ViweWarehouse(warehouse.WarehouseId))">Viwe</button>
+                    
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private void EditWarehouse(string warehouseId)
+    {
+        NavManager.NavigateTo($"/warehouse/update/{warehouseId}");
+    }
+    private void ViweWarehouse(string warehouseId)
+    {
+        NavManager.NavigateTo($"/warehouse/viwe/{warehouseId}");
+    }
+}

@@ -1,0 +1,202 @@
+@using RPGobject
+@using RPGback.Controllers
+@page "/order/create"
+@inject NavigationManager NavManager
+
+@if (Products == null)
+{
+    <div class="alert alert-danger">
+        Ocurrió un error al cargar la lista de productos. Por favor, inténtalo de nuevo más tarde.
+    </div>
+}
+<ul class="nav nav-tabs list-unstyled">
+    <li class="nav-item">
+        <a class="nav-link" href="/order/list">Order List</a>
+    </li>
+    <li>
+        <a class="nav-link active" href="/order/create">+ New Order</a>
+    </li>
+</ul>
+<h3>Crear Orden</h3>
+<form>
+    <div class="form-group">
+        <label>Warehouse: </label>
+        <select @bind="oOrder.WarehouseId" class="form-control">
+            <option value="">-- Select a warehouse --</option>
+            @foreach (var warehouse in Warehouses)
+            {
+                <option value="@warehouse.WarehouseId">@warehouse.WarehouseName</option>
+            }
+        </select>
+        <button class="btn btn-primary btn-sm" type="button" @onclick="addWarehouse">Add</button>
+    </div>
+    <div class="custom-select">
+        @if (Products != null && Products.Count > 0)
+        {
+            <table class="table table-bordered table-sm">
+                <thead>
+                    <tr>
+                        <th>Product Name</th>
+                        <th>Purchase Price</th>
+                        <th>Quantity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var product in Products)
+                    {
+                        <tr>
+                            <td>
+                                @product.ProductName
+                            </td>
+                            <td>
+                                @product.PurchasePrice
+                            </td>    
+                            <td>
+                                <input type="number" value="0"
+                                @oninput="e => SetQuantity(product.ProductId, ParseQuantity(e.Value.ToString()))" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <p>Total Amount: @oOrder.TotalAmount</p>
+
+                    <button type="button" class="btn btn-primary btn-sm" @onclick="CreateOrder">Crear Orden</button>
+                </tfoot>
+            </table>
+        }
+        else
+        {
+            <p>No products found.</p>
+        }
+    </div>
+</form>
+@code {
+    private DateTime currentDate;
+    List<Warehouse> Warehouses = new List<Warehouse>();
+    private string WarehouseId { get; set; }
+    private List<Product> Products { get; set; }
+    private List<string> SelectedProductIds { get; set; } = new List<string>();
+    private int Quantity { get; set; }
+    Dictionary<string, int> productQuantities = new Dictionary<string, int>();
+    void SetQuantity(string productId, int value)
+    {
+        productQuantities[productId] = value;
+
+        if (value > 0)
+        {
+            if (!SelectedProductIds.Contains(productId))
+            {
+                SelectedProductIds.Add(productId);
+            }
+        }
+        else
+        {
+            SelectedProductIds.Remove(productId);
+        }
+        UpdateTotalAmount();
+    }
+    void UpdateTotalAmount()
+    {
+        decimal totalAmount = 0;
+
+        foreach (var productId in SelectedProductIds)
+        {
+            var producto = Products.FirstOrDefault(p => p.ProductId == productId);
+
+            if (producto != null && productQuantities.TryGetValue(productId, out int quantity))
+            {
+                totalAmount += producto.PurchasePrice * quantity;
+            }
+        }
+
+        oOrder.TotalAmount = totalAmount;
+
+        StateHasChanged();
+    }
+    int ParseQuantity(string input)
+    {
+        if (int.TryParse(input, out int quantity))
+        {
+            return quantity;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+    
+    private Order oOrder = new Order
+        {
+            OrderId = Guid.NewGuid().ToString(),
+            OrderProducts = new List<OrderProduct>()
+        };
+    
+    protected override async Task OnInitializedAsync()
+    {
+        currentDate = GetCurrentDate();
+        Products = await RPGback.Controllers.ProductControllers.GetProductsAsync();
+        Warehouses = await RPGback.Controllers.WarehouseControllers.GetWarehousesAsync();
+    }
+    
+    private async Task CreateOrder()
+    {
+        oOrder.FechData = currentDate;
+        oOrder.OrderProducts.Clear();
+        decimal totalAmount = 0;
+        foreach (var productId in SelectedProductIds)
+        {
+            var producto = Products.FirstOrDefault(p => p.ProductId == productId);
+
+            if (producto != null && productQuantities.TryGetValue(productId, out int quantity))
+            {
+                OrderProduct oOrderProduct = new OrderProduct
+                    {
+                        OrderId = oOrder.OrderId,
+                        ProductId = producto.ProductId,
+                        Quantity = quantity
+                    };
+                oOrder.OrderProducts.Add(oOrderProduct);
+                totalAmount += producto.PurchasePrice * quantity;
+            }
+        }
+        oOrder.TotalAmount = totalAmount;
+        try
+        {
+            await OrderControllers.CreateOrderAsync(oOrder);
+            Console.WriteLine("Nueva orden creada con éxito");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al crear la orden: {ex.Message}");
+            if (ex.InnerException != null)
+            {
+                Console.WriteLine($"Error interno: {ex.InnerException.Message}");
+            }
+        }
+    }
+    private void addWarehouse()
+    {
+        var warehouse = Warehouses.FirstOrDefault(w => w.WarehouseId == oOrder.WarehouseId);
+        if (warehouse != null)
+        {
+            oOrder.WarehouseId = warehouse.WarehouseId;
+            Warehouses.Remove(warehouse);
+        }
+    }
+    private void OnProductSelectionChange(string productId)
+    {
+        if (SelectedProductIds.Contains(productId))
+        {
+            SelectedProductIds.Remove(productId);
+        }
+        else
+        {
+            SelectedProductIds.Add(productId);
+        }
+    }
+    private DateTime GetCurrentDate()
+    {
+        return DateTime.Now;
+    }
+}

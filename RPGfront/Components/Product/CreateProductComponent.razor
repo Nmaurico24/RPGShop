@@ -1,0 +1,75 @@
+@page "/product/create"
+@using RPGobject
+@using RPGback.Controllers
+
+@inject NavigationManager NavManager
+
+<ul class="nav nav-tabs list-unstyled">
+    <li class="nav-item">
+        <a class="nav-link" href="/product/list">Product List</a>
+    </li>
+    <li>
+        <a class="nav-link active" href="/product/create">+ New Product</a>
+    </li>
+</ul>
+<div>
+    <EditForm Model="oProduct">
+        <div class="form-group">
+            <label>Name: </label>
+            <InputText @bind-Value="oProduct.ProductName" class="form-control" />
+        </div>
+        <div class="form-group">
+            <label>Description: </label>
+            <InputTextArea @bind-Value="oProduct.ProductDescription" class="form-control" />
+        </div>
+        <div class="form-group">
+            <label>PurchasePrice: </label>
+            <InputNumber @bind-Value="oProduct.PurchasePrice" class="form-control" />
+        </div>
+        <div class="form-group">
+            <label>SalePrice: </label>
+            <InputNumber @bind-Value="oProduct.SalePrice" class="form-control" />
+        </div>
+        <div class="form-group">
+            <label>Category 1: </label>
+            <InputSelect @bind-Value="oProduct.Category1" class="form-control">
+                @foreach (var categoryValue in Enum.GetValues(typeof(Category1)))
+                {
+                    <option value="@categoryValue">@categoryValue</option>
+                }
+            </InputSelect>
+        </div>
+        <div class="form-group">
+            <label>Category 2: </label>
+            <InputSelect @bind-Value="oProduct.Category2" class="form-control">
+                @foreach (var categoryValue in Enum.GetValues(typeof(Category2)))
+                {
+                    <option value="@categoryValue">@categoryValue</option>
+                }
+            </InputSelect>
+        </div>
+        <div class="form-group">
+            <label>Category 3: </label>
+            <InputSelect @bind-Value="oProduct.Category3" class="form-control">
+                @foreach (var categoryValue in Enum.GetValues(typeof(Category3)))
+                {
+                    <option value="@categoryValue">@categoryValue</option>
+                }
+            </InputSelect>
+        </div>
+
+        <button type="button" class="btn btn-primary btn-sm" @onclick="SaveProduct" >Add Product</button>
+        
+    </EditForm>
+</div>
+
+@code {
+    Product oProduct = new Product();
+
+    private void SaveProduct()
+    {
+        oProduct.ProductId = Guid.NewGuid().ToString();
+        ProductControllers.CreateProduct(oProduct);
+        NavManager.NavigateTo("product/list");
+    }
+}

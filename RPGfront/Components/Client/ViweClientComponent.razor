@@ -1,0 +1,113 @@
+@page "/client/viwe/{id}"
+@using RPGobject
+@using RPGback.Controllers
+@inject NavigationManager NavManager
+
+<ul class="nav nav-tabs list-unstyled">
+    <li class="nav-item">
+        <a class="nav-link" href="/client/list">Client List</a>
+    </li>
+    <li>
+        <a class="nav-link" href="/client/create">New Client</a>
+    </li>
+    <li>
+        <a class="nav-link active" href="">Customer products</a>
+    </li>
+</ul>
+
+<h3>View Client</h3>
+
+@if (oClient == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="form-group inline-group">
+        <label>Name: </label>
+        <p>@oClient.ClientName</p>
+    </div>
+    <div class="form-group inline-group">
+        <label>Last Name: </label>
+        <p>@oClient.ClientLastname</p>
+    </div>
+    <div class="form-group inline-group">
+        <label>Telephone Number: </label>
+        <p>@oClient.Number</p>
+    </div>
+    <div class="form-group inline-group">
+        <label>Email: </label>
+        <p>@oClient.Email</p>
+    </div>
+
+    <h4>Transactions:</h4>
+    @if (oClient.Transactions != null && oClient.Transactions.Count > 0)
+    {
+        <table class="table table-hover table-bordered">
+            <thead>
+                <tr>
+                    <th>Products</th>
+                    <th>Total Amount</th>
+                    <th>Transaction Date</th>
+                    <th>Transaction ID</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var transaction in oClient.Transactions)
+                {
+                    <tr>
+                        <td>
+                            @if (transaction.TransactionProducts != null && transaction.TransactionProducts.Count > 0)
+                            {
+                                <ul>
+                                    @foreach (var transactionProduct in transaction.TransactionProducts)
+                                    {
+                                        <li>@transactionProduct.Product.ProductName - Quantity: @transactionProduct.Quantity</li>
+                                    }
+                                </ul>
+                            }
+                            else
+                            {
+                                <p>No products found for this transaction.</p>
+                            }
+                        </td>
+                        <td>@transaction.TotalAmount</td>
+                        <td>@transaction.FechData</td>
+                        <td>@transaction.TransactionId</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p>No transactions found for this client.</p>
+    }
+}
+
+@code {
+    [Parameter]
+    public string id { get; set; }
+
+    private Client oClient;
+
+    protected override async Task OnInitializedAsync()
+    {
+        oClient = await ClientControllers.GetClientByIdAsync(id);
+        if (oClient != null)
+        {
+            oClient.Transactions = await TransactionControllers.GetTransactionsByClientIdAsync(oClient.ClientId);
+
+            foreach (var transaction in oClient.Transactions)
+            {
+                transaction.TransactionProducts = await
+                TransactionProductControllers.GetTransactionProductsByTransactionIdAsync(transaction.TransactionId);
+
+                foreach (var transactionProduct in transaction.TransactionProducts)
+                {
+                    transactionProduct.Product = await ProductControllers.GetProductByIdAsync(transactionProduct.ProductId);
+                }
+            }
+        }
+    }
+}

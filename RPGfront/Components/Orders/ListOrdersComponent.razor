@@ -1,0 +1,53 @@
+@page "/order/list"
+@using RPGobject
+@using RPGback.Controllers
+
+@inject NavigationManager NavManager
+
+<ul class="nav nav-tabs list-unstyled">
+    <li class="nav-item">
+        <a class="nav-link active" href="/order/list">Order List</a>
+    </li>
+    <li>
+        <a class="nav-link" href="/order/create">New Order</a>
+    </li>
+</ul>
+<h2>Order List</h2>
+
+<table class="table table-hover table-bordered">
+    <thead class="table-dark">
+        <tr>
+            <th>Warehouse</th>
+            <th>Date</th>
+            <th>Total Amount</th>
+            <th>Id</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var order in OrderControllers.GetOrders())
+        {
+            <tr>
+                <td>@GetWarehouseName(order.WarehouseId)</td>
+                <td>@order.FechData</td>
+                <td>@order.TotalAmount</td>
+                <td>@order.OrderId</td>
+            </tr>
+        }
+    </tbody>
+    
+</table>
+
+@code {
+    List<Warehouse> Warehouses = new List<Warehouse>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Warehouses = await RPGback.Controllers.WarehouseControllers.GetWarehousesAsync();
+    }
+    
+    private string GetWarehouseName(string warehouseId)
+    {
+        var warehouse = Warehouses.FirstOrDefault(w => w.WarehouseId == warehouseId);
+        return warehouse?.WarehouseName ?? "Unknown";
+    }
+}

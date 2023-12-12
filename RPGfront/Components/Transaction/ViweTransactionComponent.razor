@@ -1,0 +1,88 @@
+@page "/transaction/viwe/{transactionId}"
+@using RPGobject
+@using RPGback.Controllers
+@inject NavigationManager NavManager
+
+
+
+@if (oTransaction == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{   
+    <ul class="nav nav-tabs list-unstyled">
+        <li>
+            <a class="nav-link" href="/transaction/list">Transaction List</a>
+        </li>
+        <li>
+            <a class="nav-link" href="/transaction/create">+ New Transaction</a>
+        </li>
+        <li>
+            <a class="nav-link active" href="">Transaciton Products</a>
+        </li>
+    </ul>
+
+    <h2>View Transaction</h2>
+
+    <div class="form-group inline-group">
+        <label>Total Amount: </label>
+        <p>@oTransaction.TotalAmount</p>
+    </div>
+    <div class="form-group inline-group">
+        <label>Transaction Date: </label>
+        <p>@oTransaction.FechData</p>
+    </div>
+    <div class="form-group inline-group">
+        <label>Transaction ID: </label>
+        <p>@oTransaction.TransactionId</p>
+    </div>
+
+    <h4>Products:</h4>
+    @if (oTransaction.TransactionProducts != null && oTransaction.TransactionProducts.Count > 0)
+    {   
+        <table class="table table-hover table-bordered">
+            <thead>
+                <tr>
+                    <th>Product Name</th>
+                    <th>Quantity</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var transactionProduct in oTransaction.TransactionProducts)
+                {
+                    <tr>
+                        <td>@transactionProduct.Product.ProductName</td>
+                        <td>@transactionProduct.Quantity</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p>No products found for this transaction.</p>
+    }
+
+}
+
+@code {
+    [Parameter]
+    public string transactionId { get; set; }
+
+    private Transaction oTransaction;
+
+    protected override async Task OnInitializedAsync()
+    {
+        oTransaction = await TransactionControllers.GetTransactionByIdAsync(transactionId);
+        if (oTransaction != null)
+        {
+            oTransaction.TransactionProducts = await TransactionProductControllers.GetTransactionProductsByTransactionIdAsync(transactionId);
+
+            foreach (var transactionProduct in oTransaction.TransactionProducts)
+            {
+                transactionProduct.Product = await ProductControllers.GetProductByIdAsync(transactionProduct.ProductId);
+            }
+        }
+    }
+}

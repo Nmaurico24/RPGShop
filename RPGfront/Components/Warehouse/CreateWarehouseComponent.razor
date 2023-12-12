@@ -1,0 +1,48 @@
+@page "/warehouse/create"
+@using RPGobject
+@using RPGback
+@inject NavigationManager NavManager
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Forms
+
+
+<ul class="nav nav-tabs list-unstyled">
+    <li class="nav-item">
+        <a class="nav-link" href="/warehouse/list">Warehouse List</a>
+    </li>
+    <li>
+        <a class="nav-link active" href="/warehouse/create">+ New Warehouse</a>
+    </li>
+</ul>
+<div>
+    <EditForm Model="oWarehouse">
+        <div class="form-group">
+            <label>Name: </label>
+            <InputText @bind-Value="oWarehouse.WarehouseName" class="form-control" />
+            <ValidationMessage For="@(() => oWarehouse.WarehouseName)" />
+        </div>
+        <div class="form-group">
+            <label>Address: </label>
+            <InputTextArea @bind-Value="oWarehouse.WarehouseAddress" class="form-control" />
+            <ValidationMessage For="@(() => oWarehouse.WarehouseAddress)" />
+        </div>
+        <button type="button" class="btn btn-primary" @onclick="SaveWarehouse" disabled="@(!IsValid())">Add Warehouse</button>
+    </EditForm>
+</div>
+
+@code {
+    Warehouse oWarehouse = new Warehouse();
+    private bool IsValid()
+    {
+        var context = new ValidationContext(oWarehouse, serviceProvider: null, items: null);
+        var results = new List<ValidationResult>();
+        return Validator.TryValidateObject(oWarehouse, context, results, true);
+    }
+
+    private void SaveWarehouse()
+    {
+        oWarehouse.WarehouseId = Guid.NewGuid().ToString();
+        RPGback.Controllers.WarehouseControllers.CreateWarehouse(oWarehouse);
+        NavManager.NavigateTo("Warehouse/list");
+    }
+}
